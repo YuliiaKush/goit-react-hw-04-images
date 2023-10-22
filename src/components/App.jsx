@@ -1,6 +1,6 @@
-import { Component } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
-import PropTypes from 'prop-types';
+// import PropTypes from 'prop-types';
 import { ToastContainer, toast } from 'react-toastify';
 import { Zoom } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -12,29 +12,28 @@ import { AppContainer } from './App.styled';
 import fetchApi from '../components/ApiService/ApiService';
 import Spiner from './Loader/Loader';
 import Modal from './Modal/Modal';
-
+// propTypes = { searchQuery: PropTypes.string };
 axios.defaults.baseURL = 'https://pixabay.com/api/';
-export default class App extends Component {
-  static propTypes = { searchQuery: PropTypes.string };
-  state = {
-    searchQuery: '',
-    images: [],
-    page: 1,
-    selectedImage: null,
-    alt: null,
-    status: 'idle',
-    error: null,
-  };
-  totalHits = null;
+export default function App() {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [images, setImages] = useState([]);
+  const [page, setPage] = useState(1);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [alt, setAlt] = useState(null);
+  const [status, setStatus] = useState('idle');
+  const [error, setError] = useState(null);
+  const [totalHits, setTotalHits] = useState(null);
 
-  async componentDidUpdate(_, prevState) {
-    const { page, searchQuery } = this.state;
-    if (prevState.searchQuery !== searchQuery || prevState.page !== page) {
-      this.setState({ status: 'pending' });
+  useEffect(() => {
+    if (!searchQuery) {
+      return;
+    }
 
+    async function fetchImages() {
+      setStatus('pending');
       try {
         const imageData = await fetchApi(searchQuery, page);
-        this.totalHits = imageData.total;
+        setTotalHits(imageData.total);
         const imagesHits = imageData.hits;
         if (!imagesHits.length) {
           toast.warning(
@@ -42,10 +41,8 @@ export default class App extends Component {
             { transition: Zoom, position: 'top-center' }
           );
         }
-        this.setState(({ images }) => ({
-          images: [...images, ...imagesHits],
-          status: 'resolved',
-        }));
+        setImages(prevImg => [...prevImg, ...imagesHits]);
+        setStatus('resolved');
 
         if (page > 1) {
           const CARD_HEIGHT = 300; // preview image height
@@ -55,77 +52,63 @@ export default class App extends Component {
           });
         }
       } catch (error) {
-        toast.error(`Sorry something went wrong. ${error.message}`);
-        this.setState({ status: 'rejected' });
+        setError(new Error(`Sorry something went wrong. ${error.message}`));
+        toast.error(`Sorry something went wrong.`);
+        setStatus('rejected');
       }
     }
-  }
-  handleFormSubmit = searchQuery => {
-    if (this.state.searchQuery === searchQuery) {
+    fetchImages();
+  }, [searchQuery, page]);
+
+  const handleFormSubmit = query => {
+    if (searchQuery === query) {
       return;
     }
-    this.resetState();
-    this.setState({ searchQuery });
+    resetState();
+    setSearchQuery(query);
   };
-  handleSelectedImage = (largeImageUrl, tags) => {
-    this.setState({
-      selectedImage: largeImageUrl,
-      alt: tags,
-    });
+  const handleSelectedImage = (largeImageUrl, tags) => {
+    setSelectedImage(largeImageUrl);
+    setAlt(tags);
   };
 
-  resetState = () => {
-    this.setState({
-      searchQuery: '',
-      page: 1,
-      images: [],
-      selectedImage: null,
-      alt: null,
-      status: 'idle',
-    });
+  const resetState = () => {
+    setSearchQuery('');
+    setPage(1);
+    setImages([]);
+    setSelectedImage(null);
+    setAlt(null);
+    setStatus('idle');
+    setTotalHits(null); // try
   };
 
-  loadMore = () => {
-    this.setState(prevState => ({
-      page: prevState.page + 1,
-    }));
+  const loadMore = () => {
+    setPage(prevPage => prevPage + 1);
   };
 
-  closeModal = () => {
-    this.setState({
-      selectedImage: null,
-    });
+  const closeModal = () => {
+    setSelectedImage(null);
   };
 
-  render() {
-    const { images, status, selectedImage, alt, error } = this.state;
-    return (
-      <AppContainer>
-        <SearhBar onSubmit={this.handleFormSubmit} />
-        <ToastContainer autoClose={3000} theme="colored" pauseOnHover />
-        {status === 'pending' && <Spiner />}
-        {error && (
-          <h1 style={{ color: 'orangered', textAlign: 'center' }}>
-            {error.message}
-          </h1>
-        )}
-        {images.length > 0 && (
-          <ImageGallery
-            images={images}
-            selectedImage={this.handleSelectedImage}
-          />
-        )}
-        {images.length > 0 && images.length !== this.totalHits && (
-          <LoadMoreButton onClick={this.loadMore} />
-        )}
-        {selectedImage && (
-          <Modal
-            selectedImage={selectedImage}
-            tags={alt}
-            onClose={this.closeModal}
-          />
-        )}
-      </AppContainer>
-    );
-  }
+  return (
+    <AppContainer>
+      <SearhBar onSubmit={handleFormSubmit} />
+      <ToastContainer autoClose={3000} theme="colored" pauseOnHover />
+      {status === 'pending' && <Spiner />}
+      {error && (
+        <h1 style={{ color: 'orangered', textAlign: 'center' }}>
+          {error.message}
+        </h1>
+      )}
+      {images.length > 0 && (
+        <ImageGallery images={images} selectedImage={handleSelectedImage} />
+      )}
+      {images.length > 0 && images.length !== totalHits && (
+        <LoadMoreButton onClick={loadMore} />
+      )}
+      {selectedImage && (
+        <Modal selectedImage={selectedImage} tags={alt} onClose={closeModal} />
+      )}
+    </AppContainer>
+  );
 }
