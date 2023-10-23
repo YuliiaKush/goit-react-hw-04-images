@@ -36,7 +36,7 @@ export default function App() {
         setTotalHits(imageData.total);
         const imagesHits = imageData.hits;
         if (!imagesHits.length) {
-          toast.warning(
+          return toast.warning(
             'No results were found for your search, please try something else.',
             { transition: Zoom, position: 'top-center' }
           );
