@@ -1,30 +1,34 @@
 import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
+import { disableBodyScroll, enableBodyScroll } from 'body-scroll-lock';
 import { ModalOverlay, ModalContainer } from './Modal.styled';
 
 const modalRoot = document.querySelector('#modal-root');
 
 export default function Modal({ selectedImage, tags, onClose }) {
   useEffect(() => {
-    window.addEventListener('keydown', handleKeyDown);
+    const onEscapeCloseHandle = event => {
+      if (event.code === 'Escape') {
+        onClose();
+      }
+    };
+   window.addEventListener('keydown', onEscapeCloseHandle);
+    disableBodyScroll(document);
+    return () => {
+      window.removeEventListener('keydown', onEscapeCloseHandle);
+      enableBodyScroll(document);
+    };
+  }, [onClose]);
 
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  });
-
-  const handleKeyDown = e => {
-    if (e.code === 'Escape') {
+  const onBackdropCLick = event => {
+    if (event.target === event.currentTarget) {
       onClose();
     }
   };
 
-  const handleBackdropClick = e => {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
-  };
   return createPortal(
-    <ModalOverlay onClick={handleBackdropClick}>
+    <ModalOverlay onClick={onBackdropCLick}>
       <ModalContainer>
         <img src={selectedImage} alt={tags} />
       </ModalContainer>
